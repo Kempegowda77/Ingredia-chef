@@ -1,0 +1,17 @@
+{
+  "short_name": "Ingredia",
+  "name": "Ingredia - Smart Recipe Intelligence",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "48x48 72x72 96x96 144x144 192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FFF8F2",
+  "theme_color": "#0F9D58",
+  "display": "standalone",
+  "orientation": "portrait"
+}

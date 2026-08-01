@@ -26,13 +26,13 @@ import {
 } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyASoV1ww9FWaOJlBB6gJhdWI5CqedTPm8s",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "ingredia-chef.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "ingredia-chef",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "ingredia-chef.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "6942297482",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:6942297482:web:228c5741085b4e4ffacc73",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-DYMZ8N1H4Z"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);

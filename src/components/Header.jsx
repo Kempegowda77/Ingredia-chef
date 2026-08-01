@@ -199,14 +199,28 @@ export default function Header({ savedCount = 0 }) {
               </select>
             </div>
 
-            <button 
-              className="user-profile-btn" 
-              onClick={() => setDrawerOpen(true)}
-              aria-label="User Profile"
-              title="User Profile Menu"
-            >
-              <User size={18} />
-            </button>
+            {currentUser ? (
+              <button 
+                className="header-user-avatar-btn" 
+                onClick={() => setDrawerOpen(true)}
+                aria-label="User Account Drawer"
+                title={currentUser.displayName || currentUser.email}
+              >
+                {currentUser.photoURL ? (
+                  <img src={currentUser.photoURL} alt="User Avatar" className="header-avatar-img" />
+                ) : (
+                  <span className="header-initials-badge">{getUserInitials()}</span>
+                )}
+              </button>
+            ) : (
+              <button 
+                className="header-login-btn"
+                onClick={handleLogIn}
+                aria-label="Log In or Sign Up"
+              >
+                <LogIn size={15} /> Log In
+              </button>
+            )}
           </div>
         </div>
       </header>

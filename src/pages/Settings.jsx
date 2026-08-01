@@ -1,16 +1,67 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
-import { Sun, Moon, Globe, Sliders, Bell, Info, ShieldCheck, FileText } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { Sun, Moon, Globe, Sliders, Bell, Info, ShieldCheck, FileText, User, LogIn, LogOut, CheckCircle2 } from "lucide-react"
 import { LANGUAGES } from "../i18n"
+import { auth, signOut, onAuthStateChanged } from "../firebase"
+import SEO from "../components/SEO"
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const [theme, setTheme] = React.useState(() => localStorage.getItem('ingredia_theme') || 'system')
   const [units, setUnits] = React.useState(() => localStorage.getItem('ingredia_units') || 'metric')
   const [emailNotifs, setEmailNotifs] = React.useState(true)
   const [pushNotifs, setPushNotifs] = React.useState(true)
-
+  const [currentUser, setCurrentUser] = React.useState(null)
   const [activeModal, setActiveModal] = React.useState(null)
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        const token = getAuthToken();
+        if (token) {
+          try {
+            const decodedEmail = atob(token);
+            if (decodedEmail && decodedEmail.includes('@')) {
+              setCurrentUser({
+                email: decodedEmail,
+                displayName: decodedEmail.split('@')[0],
+              });
+              return;
+            }
+          } catch (e) {}
+        }
+        setCurrentUser(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  async function handleSignOut() {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    clearAuthToken();
+    setCurrentUser(null);
+    navigate('/auth');
+  }
+
+  const getUserInitials = () => {
+    if (!currentUser) return 'GU';
+    if (currentUser.displayName) {
+      const parts = currentUser.displayName.split(' ');
+      return parts.length >= 2 
+        ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+        : parts[0].slice(0, 2).toUpperCase();
+    }
+    if (currentUser.email) {
+      return currentUser.email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
 
   function handleThemeChange(val) {
     setTheme(val)
@@ -29,12 +80,61 @@ export default function Settings() {
 
   return (
     <main className="main-content">
+      <SEO 
+        title="Settings & Preferences | Ingredia Kitchen"
+        description="Customize your Ingredia kitchen companion experience, language preferences, and measurement units."
+        canonical="https://ingredia.vercel.app/settings"
+      />
       <div className="layout-single-column">
         <h1 className="section-heading-large mb-2">{t('settingsTitle')}</h1>
         <p className="section-subheading mb-6">{t('settingsSub')}</p>
 
         <div className="settings-sections-flex">
-          {/* SECTION 1: LANGUAGE & REGION (10 LANGUAGES) */}
+          {/* SECTION 0: ACCOUNT & USER PROFILE */}
+          <div className="settings-card profile-settings-card">
+            <div className="settings-card-title">
+              <User size={20} color="#0F9D58" />
+              <h3>Account Profile</h3>
+            </div>
+            
+            <div className="profile-card-content mt-4">
+              <div className="profile-user-row">
+                <div className="profile-avatar-circle">
+                  {currentUser?.photoURL ? (
+                    <img src={currentUser.photoURL} alt="User Avatar" className="profile-avatar-img" />
+                  ) : (
+                    <span className="profile-initials-text">{getUserInitials()}</span>
+                  )}
+                </div>
+                <div className="profile-details-column">
+                  <h4 className="profile-display-name">
+                    {currentUser ? (currentUser.displayName || "Ingredia Chef User") : "Guest User"}
+                  </h4>
+                  <p className="profile-email-text">
+                    {currentUser ? currentUser.email : "Sign in to save and sync recipes across all devices"}
+                  </p>
+                  {currentUser && (
+                    <span className="account-verified-pill">
+                      <CheckCircle2 size={12} /> Verified Account
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="profile-action-btn-row mt-4">
+                {currentUser ? (
+                  <button className="btn-outline-logout" onClick={handleSignOut}>
+                    <LogOut size={16} /> Sign Out Account
+                  </button>
+                ) : (
+                  <Link to="/auth" className="btn-pulse-green btn-full-mobile">
+                    <LogIn size={16} /> Log In / Sign Up
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* SECTION 1: LANGUAGE & REGION */}
           <div className="settings-card">
             <div className="settings-card-title">
               <Globe size={20} color="#2563EB" />
@@ -42,16 +142,20 @@ export default function Settings() {
             </div>
             <p className="settings-card-subtitle">Select your preferred instruction and UI language.</p>
 
-            <div className="segmented-options-row mt-4">
-              {LANGUAGES.map(lang => (
-                <button 
-                  key={lang.code}
-                  className={`segmented-btn ${i18n.language === lang.code ? 'active' : ''}`}
-                  onClick={() => handleLangChange(lang.code)}
-                >
-                  <span>{lang.native}</span> ({lang.label})
-                </button>
-              ))}
+            <div className="select-box-styled mt-4">
+              <Globe size={18} color="#2563EB" />
+              <select 
+                className="settings-dropdown-select"
+                value={i18n.language || 'en'}
+                onChange={(e) => handleLangChange(e.target.value)}
+                aria-label="Select Language"
+              >
+                {LANGUAGES.map(lang => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.native} ({lang.label})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -75,12 +179,6 @@ export default function Settings() {
                 onClick={() => handleThemeChange('dark')}
               >
                 <Moon size={16} /> Dark
-              </button>
-              <button 
-                className={`segmented-btn ${theme === 'system' ? 'active' : ''}`}
-                onClick={() => handleThemeChange('system')}
-              >
-                🖥️ System
               </button>
             </div>
           </div>

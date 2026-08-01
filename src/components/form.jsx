@@ -1,7 +1,7 @@
 import React from "react"
 import { 
-  Search, Sparkles, Plus, Check, X, Clock, Flame, 
-  ChevronLeft, ChevronRight, Heart, AlertCircle, RotateCcw, Utensils, UtensilsCrossed 
+  Search, Plus, Check, X, Clock, Flame, 
+  ChevronLeft, ChevronRight, Heart, AlertCircle, RotateCcw, Utensils, UtensilsCrossed, Crown, ChefHat 
 } from "lucide-react"
 
 import { getRecipeOptionsFromChefClaude, getRecipeFromChefClaude } from "../ai"
@@ -16,6 +16,7 @@ import DishSmoothie3D from "../assets/dish_smoothie_3d.png"
 
 export default function Form() {
   const [Ingred, setIngred] = React.useState(["Chicken", "Onion", "Tomato"])
+  const [mainIngredient, setMainIngredient] = React.useState("Chicken")
   const [inputValue, setInputValue] = React.useState("")
   const [loadingOptions, setLoadingOptions] = React.useState(false)
   const [loadingRecipe, setLoadingRecipe] = React.useState(false)
@@ -64,30 +65,48 @@ export default function Form() {
   function toggleQuickPill(itemName) {
     if (Ingred.includes(itemName)) {
       setIngred(prev => prev.filter(i => i !== itemName))
+      if (mainIngredient === itemName) setMainIngredient("")
     } else {
       setIngred(prev => [...prev, itemName])
     }
     setErrorMessage("")
   }
 
+  function toggleMainIngredient(itemName) {
+    if (mainIngredient === itemName) {
+      setMainIngredient("") // clear main ingredient
+    } else {
+      setMainIngredient(itemName) // set main ingredient
+    }
+  }
+
   function removeIngredient(indexToRemove) {
+    const itemToRemove = Ingred[indexToRemove]
+    if (mainIngredient === itemToRemove) setMainIngredient("")
     setIngred(prev => prev.filter((_, index) => index !== indexToRemove))
   }
 
   function handleTryExample(exampleStr) {
     const items = exampleStr.split(",").map(s => s.trim())
     setIngred(items)
+    if (items.length > 0) setMainIngredient(items[0])
     setErrorMessage("")
   }
+
+  // Auto scroll to top when changing views
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [viewState])
 
   // 1. Fetch Recipe Options
   async function handleFindRecipeOptions() {
     if (Ingred.length === 0) return
+    window.scrollTo({ top: 0, behavior: 'instant' })
     setLoadingOptions(true)
     setErrorMessage("")
     setViewState("options")
     try {
-      const options = await getRecipeOptionsFromChefClaude(Ingred)
+      const options = await getRecipeOptionsFromChefClaude(Ingred, mainIngredient)
       setRecipeOptions(options)
     } catch (err) {
       console.error("Error fetching recipe options:", err)
@@ -99,6 +118,7 @@ export default function Form() {
 
   // 2. Fetch Full Recipe for selected option
   async function handleSelectRecipeOption(option) {
+    window.scrollTo({ top: 0, behavior: 'instant' })
     setSelectedOption(option)
     setLoadingRecipe(true)
     setErrorMessage("")
@@ -177,13 +197,13 @@ export default function Form() {
 
   function getDishImage(title) {
     const term = (title || "").toLowerCase()
-    if (term.includes("coffee") || term.includes("tea") || term.includes("chai")) return DishBeverage3D
-    if (term.includes("smoothie") || term.includes("shake")) return DishSmoothie3D
+    if (term.includes("coffee") || term.includes("tea") || term.includes("chai") || term.includes("beverage")) return DishBeverage3D
+    if (term.includes("smoothie") || term.includes("shake") || term.includes("juice") || term.includes("drink") || term.includes("banana")) return DishSmoothie3D
     if (term.includes("chicken") || term.includes("poultry") || term.includes("fry")) return DishChicken3D
-    if (term.includes("pasta") || term.includes("spaghetti")) return DishPasta3D
-    if (term.includes("salad")) return DishSalad3D
-    if (term.includes("curry") || term.includes("soup") || term.includes("masala") || term.includes("pulao")) return DishCurry3D
-    if (term.includes("pizza") || term.includes("bake")) return DishPizza3D
+    if (term.includes("pasta") || term.includes("spaghetti") || term.includes("noodle") || term.includes("macaroni")) return DishPasta3D
+    if (term.includes("salad") || term.includes("broccoli") || term.includes("veggie")) return DishSalad3D
+    if (term.includes("pizza") || term.includes("bake") || term.includes("sandwich") || term.includes("toast") || term.includes("bread") || term.includes("cheese")) return DishPizza3D
+    if (term.includes("curry") || term.includes("masala") || term.includes("gravy") || term.includes("soup") || term.includes("pulao") || term.includes("rice") || term.includes("paneer")) return DishCurry3D
     return DishVeggie3D
   }
 
@@ -216,9 +236,6 @@ export default function Form() {
           
           {/* HERO HEADER */}
           <div className="hero-banner">
-            <div className="hero-badge-pill">
-              <Sparkles size={14} /> Ingredia Intelligence 2.0
-            </div>
             <h1 className="hero-headline">🥘 What's cooking today?</h1>
             <p className="hero-subheadline">
               Ingredients + Intelligence: Turn your available kitchen ingredients into restaurant-quality recipes instantly.
@@ -231,7 +248,7 @@ export default function Form() {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Type or search ingredients (e.g. Chicken, Tomato, Garlic)..."
+                placeholder="Search ingredients (e.g. Chicken, Tomato)..."
                 className="search-input-field"
                 aria-label="Search ingredients"
               />
@@ -239,23 +256,9 @@ export default function Form() {
                 <Plus size={16} /> Add
               </button>
             </form>
-
-            {/* TRY EXAMPLES */}
-            <div className="try-prompts-row">
-              <span className="try-label">Try:</span>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Chicken, Rice, Tomato")}>
-                🍗 Chicken, Rice, Tomato
-              </button>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Milk, Coffee, Sugar")}>
-                ☕ Milk, Coffee, Sugar
-              </button>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Pasta, Garlic, Olive oil")}>
-                🍝 Pasta, Garlic, Olive oil
-              </button>
-            </div>
           </div>
 
-          {/* POPULAR INGREDIENT CHIPS */}
+          {/* POPULAR INGREDIENT CHIPS (Moved right under search for fast tapping) */}
           <div className="quick-add-section">
             <h3 className="section-title">Popular Ingredients</h3>
             <div className="pills-flex-grid">
@@ -285,14 +288,14 @@ export default function Form() {
                 <UtensilsCrossed size={48} />
               </div>
               <h3 className="section-title">Start adding ingredients</h3>
-              <p className="card-subtitle-text">Type above or click popular pills to discover Ingredia AI recommendations!</p>
+              <p className="card-subtitle-text">Type above or click popular pills to discover recipe recommendations!</p>
             </div>
           ) : (
             <div className="selected-ingredients-card">
               <div className="card-top-header">
                 <div>
                   <h3 className="card-title-text">🥗 Ingredients Ready</h3>
-                  <p className="card-subtitle-text">Ingredia AI will find matching recipes for your kitchen</p>
+                  <p className="card-subtitle-text">Tap an ingredient to set it as the Main Hero Ingredient (or leave unselected)</p>
                 </div>
                 
                 {/* HUGE STAT BADGE */}
@@ -304,20 +307,32 @@ export default function Form() {
 
               {/* Tag Chips */}
               <div className="chips-flex-wrap">
-                {Ingred.map((item, index) => (
-                  <div key={index} className="active-ingredient-chip">
-                    <Check size={14} strokeWidth={3} />
-                    <span>{item}</span>
-                    <button
-                      type="button"
-                      className="chip-close-btn"
-                      onClick={() => removeIngredient(index)}
-                      aria-label={`Remove ${item}`}
+                {Ingred.map((item, index) => {
+                  const isMain = mainIngredient === item
+                  return (
+                    <div 
+                      key={index} 
+                      className={`active-ingredient-chip ${isMain ? "main-hero-chip" : ""}`}
+                      onClick={() => toggleMainIngredient(item)}
+                      title={isMain ? "Main Hero Ingredient (Tap to unset)" : "Tap to set as Main Hero Ingredient"}
                     >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
+                      {isMain ? <Crown size={14} color="#F59E0B" /> : <Check size={14} strokeWidth={3} />}
+                      <span>{item}</span>
+                      {isMain && <span className="main-tag-pill">👑 Main</span>}
+                      <button
+                        type="button"
+                        className="chip-close-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeIngredient(index)
+                        }}
+                        aria-label={`Remove ${item}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* GENERATE BUTTON */}
@@ -327,7 +342,7 @@ export default function Form() {
                   className="btn-pulse-green"
                   onClick={handleFindRecipeOptions}
                 >
-                  <Sparkles size={20} /> Find Recipe Options
+                  <ChefHat size={20} /> Find Recipe Options
                 </button>
               </div>
             </div>
@@ -343,7 +358,7 @@ export default function Form() {
               <ChevronLeft size={18} /> Edit Ingredients
             </button>
             <h2 className="section-heading-large">Using your ingredients, you can make:</h2>
-            <p className="section-subheading">Ranked by Ingredia AI flavor harmony & ease of cooking</p>
+            <p className="section-subheading">Ranked by flavor harmony & ease of cooking</p>
 
             {loadingOptions ? (
               /* SKELETON SHIMMER CARDS */
@@ -440,10 +455,10 @@ export default function Form() {
                   </div>
 
                   <div className="split-card ai-added-card">
-                    <h4>⭐ AI Added (Pantry)</h4>
+                    <h4>🧂 Smart Pantry Enhancements</h4>
                     <ul className="split-list">
                       {ingredientLists.aiAdded.map((item, i) => (
-                        <li key={i}>⭐ {item}</li>
+                        <li key={i}>✓ {item}</li>
                       ))}
                     </ul>
                   </div>

@@ -2,6 +2,115 @@
    Auth Form Component Styles – Premium Glassmorphism Design
    ============================================================== */
 
+/* ------------------------------------------------------------------
+   MODAL OVERLAY – Full-screen centered modal with dark backdrop
+   ------------------------------------------------------------------ */
+.modal-overlay-backdrop {
+  position: fixed;
+  inset: 0;                          /* top:0 right:0 bottom:0 left:0 */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: backdropFadeIn 0.2s ease;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Card that sits centred inside the backdrop */
+.auth-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.10);
+  padding: 36px 32px 28px;
+  animation: modalSlideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* Close (×) button in top-right corner of the card */
+.modal-close-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  z-index: 1;
+}
+
+.modal-close-icon:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Header inside the modal */
+.auth-modal-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.auth-modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.auth-modal-header p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Prevent body scroll while modal is open (add via JS if needed) */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Scrollbar styling inside the modal card */
+.auth-modal-card::-webkit-scrollbar { width: 4px; }
+.auth-modal-card::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+/* Responsive – full-screen on very small phones */
+@media (max-width: 480px) {
+  .auth-modal-card {
+    max-height: 100dvh;
+    border-radius: 16px 16px 0 0;
+    padding: 28px 20px 20px;
+    align-self: flex-end;          /* slides up from bottom on mobile */
+  }
+
+  .modal-overlay-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+}
+
 .auth-form {
   max-width: 420px;
   margin: var(--space-12) auto;
@@ -139,6 +248,15 @@
 
 .google-icon {
   flex-shrink: 0;
+}
+/* When rendered inside the modal card, reset the standalone form margins */
+.auth-modal-card .auth-form {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .auth-switch {

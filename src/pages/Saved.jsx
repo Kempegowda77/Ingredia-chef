@@ -13,6 +13,12 @@ import DishBeverage3D from "../assets/dish_beverage_3d.png"
 import DishSmoothie3D from "../assets/dish_smoothie_3d.png"
 
 import { safeGetLocalStorage } from "../security"
+import SEO from "../components/SEO"
+import {
+  loadSavedFromCloud,
+  removeRecipeFromCloud,
+  clearAllSavedFromCloud
+} from "../utils/cloudSync"
 
 export default function Saved() {
   const { t } = useTranslation()
@@ -30,22 +36,24 @@ export default function Saved() {
     loadSavedRecipes()
   }, [])
 
-  function loadSavedRecipes() {
-    const saved = safeGetLocalStorage('ingredia_saved')
-    setSavedRecipes(saved)
+  async function loadSavedRecipes() {
+    // Show local cache immediately, then fetch from cloud
+    const localData = JSON.parse(localStorage.getItem('ingredia_saved') || '[]');
+    setSavedRecipes(localData);
+    const cloudData = await loadSavedFromCloud();
+    setSavedRecipes(cloudData);
   }
 
-  function handleConfirmSingleDelete() {
+  async function handleConfirmSingleDelete() {
     if (!deleteTargetId) return
-    const updated = savedRecipes.filter(r => r.id !== deleteTargetId)
+    const updated = await removeRecipeFromCloud(deleteTargetId);
     setSavedRecipes(updated)
-    localStorage.setItem('ingredia_saved', JSON.stringify(updated))
     setDeleteTargetId(null)
   }
 
-  function handleConfirmClearAll() {
+  async function handleConfirmClearAll() {
     setSavedRecipes([])
-    localStorage.setItem('ingredia_saved', JSON.stringify([]))
+    await clearAllSavedFromCloud();
     setConfirmClearAll(false)
     setMenuOpen(false)
   }
@@ -69,21 +77,18 @@ export default function Saved() {
 
   return (
     <main className="main-content">
+      <SEO 
+        title="Saved Recipes | Ingredia Kitchen"
+        description="Access and manage your bookmarked favorite recipes saved in Ingredia Kitchen."
+        canonical="https://ingredia.vercel.app/saved"
+      />
       <div className="layout-single-column">
-        {/* ELEGANT COMPACT HEADER WITH THREE-DOT OVERFLOW MENU */}
-        <div className="flex-header-row mb-6">
-          <div>
-            <h1 className="section-heading-large flex-heading">
-              {t('savedTitle')} <span className="badge-count">{savedRecipes.length}</span>
-            </h1>
-            <p className="section-subheading">{t('savedSub')}</p>
-          </div>
-
-          {/* THREE-DOT OVERFLOW MENU (Apple Photos / Notion / Spotify Style) */}
+        {/* ELEGANT COMPACT HEADER WITH THREE-DOT OVERFLOW MENU ON LEFT */}
+        <div className="flex-header-row-left mb-4">
           {savedRecipes.length > 0 && (
             <div style={{ position: "relative" }}>
               <button 
-                className="user-profile-btn" 
+                className="icon-dots-btn" 
                 onClick={() => setMenuOpen(prev => !prev)}
                 aria-label="More Options"
                 title="More Options"
@@ -95,8 +100,8 @@ export default function Saved() {
                 <div 
                   className="autocomplete-dropdown" 
                   style={{ 
-                    right: 0, 
-                    left: "auto", 
+                    left: 0, 
+                    right: "auto", 
                     width: "180px", 
                     top: "110%", 
                     padding: "4px"
@@ -114,6 +119,13 @@ export default function Saved() {
               )}
             </div>
           )}
+
+          <div>
+            <h1 className="section-heading-large flex-heading">
+              {t('savedTitle')} <span className="badge-count">{savedRecipes.length}</span>
+            </h1>
+            <p className="section-subheading">{t('savedSub')}</p>
+          </div>
         </div>
 
         {/* PREMIUM FLOATING SEARCH COMPONENT */}

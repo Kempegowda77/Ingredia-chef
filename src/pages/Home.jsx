@@ -1,8 +1,8 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { 
-  Search, Sparkles, Plus, Check, X, Clock, Flame, 
-  ChevronLeft, ChevronRight, Heart, AlertCircle, RotateCcw, Utensils, UtensilsCrossed 
+  Search, Plus, Check, X, Clock, Flame, 
+  ChevronLeft, ChevronRight, Heart, AlertCircle, RotateCcw, Utensils, UtensilsCrossed, Crown, ChefHat 
 } from "lucide-react"
 
 import { getRecipeOptionsFromChefClaude, getRecipeFromChefClaude } from "../ai"
@@ -16,12 +16,26 @@ import DishVeggie3D from "../assets/dish_veggie_3d.png"
 import DishBeverage3D from "../assets/dish_beverage_3d.png"
 import DishSmoothie3D from "../assets/dish_smoothie_3d.png"
 
+import SEO from "../components/SEO"
+import { auth } from "../firebase"
+import { getAuthToken } from "../utils/auth"
+import AuthForm from "../components/AuthForm"
+import {
+  loadSavedFromCloud,
+  saveRecipeToCloud,
+  removeRecipeFromCloud,
+  loadHistoryFromCloud,
+  saveHistoryToCloud
+} from "../utils/cloudSync"
+
 export default function Home() {
   const { t } = useTranslation()
-  const [Ingred, setIngred] = React.useState(["Chicken", "Onion", "Tomato"])
+  const [Ingred, setIngred] = React.useState([])
+  const [mainIngredient, setMainIngredient] = React.useState("")
   const [inputValue, setInputValue] = React.useState("")
   const [showSuggestions, setShowSuggestions] = React.useState(false)
   const [loadingOptions, setLoadingOptions] = React.useState(false)
+  const [showAuthModal, setShowAuthModal] = React.useState(false)
   const [loadingRecipe, setLoadingRecipe] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState("")
   const [activeCategory, setActiveCategory] = React.useState("all")
@@ -37,18 +51,38 @@ export default function Home() {
   // Guided Cooking Player state
   const [currentStepIdx, setCurrentStepIdx] = React.useState(0)
 
-  // Load saved & history from localStorage
+  // Load saved & history — first from localStorage cache, then sync from Firestore cloud
   React.useEffect(() => {
-    const saved = safeGetLocalStorage('ingredia_saved');
-    const history = safeGetLocalStorage('ingredia_history');
-    setSavedRecipes(saved);
-    setHistoryList(history);
+    // Fast: show localStorage immediately
+    const localSaved = JSON.parse(localStorage.getItem('ingredia_saved') || '[]');
+    const localHistory = JSON.parse(localStorage.getItem('ingredia_history') || '[]');
+    setSavedRecipes(localSaved);
+    setHistoryList(localHistory);
+
+    // Async: fetch from cloud and update state with latest data
+    loadSavedFromCloud().then(merged => setSavedRecipes(merged)).catch(() => {});
+    loadHistoryFromCloud().then(merged => setHistoryList(merged)).catch(() => {});
   }, [])
 
-  // Save to history helper
-  function saveToHistory(option, recipeContent) {
+  // Auto scroll to top when changing views
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [viewState])
+
+  // Lock body scroll when auth modal is open
+  React.useEffect(() => {
+    if (showAuthModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [showAuthModal])
+
+
+  // Save to history helper – writes to Firestore cloud + localStorage
+  async function saveToHistory(option, recipeContent) {
     try {
-      const history = JSON.parse(localStorage.getItem('ingredia_history') || '[]')
       const newEntry = {
         id: Date.now(),
         title: option.title,
@@ -60,9 +94,8 @@ export default function Home() {
         recipeText: recipeContent,
         timestamp: new Date().toLocaleString()
       }
-      const updated = [newEntry, ...history.filter(h => h.title !== option.title)].slice(0, 30)
-      setHistoryList(updated)
-      localStorage.setItem('ingredia_history', JSON.stringify(updated))
+      const updated = await saveHistoryToCloud(newEntry);
+      setHistoryList(updated);
     } catch (e) {
       console.warn('Failed to save to history:', e)
     }
@@ -133,30 +166,48 @@ export default function Home() {
   function toggleQuickPill(itemName) {
     if (Ingred.includes(itemName)) {
       setIngred(prev => prev.filter(i => i !== itemName))
+      if (mainIngredient === itemName) setMainIngredient("")
     } else {
       setIngred(prev => [...prev, itemName])
     }
     setErrorMessage("")
   }
 
+  function toggleMainIngredient(itemName) {
+    if (mainIngredient === itemName) {
+      setMainIngredient("")
+    } else {
+      setMainIngredient(itemName)
+    }
+  }
+
   function removeIngredient(indexToRemove) {
+    const itemToRemove = Ingred[indexToRemove]
+    if (mainIngredient === itemToRemove) setMainIngredient("")
     setIngred(prev => prev.filter((_, index) => index !== indexToRemove))
   }
 
   function handleTryExample(exampleStr) {
     const items = exampleStr.split(",").map(s => s.trim())
     setIngred(items)
+    if (items.length > 0) setMainIngredient(items[0])
     setErrorMessage("")
   }
 
   // Fetch Recipe Options
   async function handleFindRecipeOptions() {
     if (Ingred.length === 0) return
+    const token = getAuthToken() || auth.currentUser;
+    if (!token) {
+      setShowAuthModal(true);
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' })
     setLoadingOptions(true)
     setErrorMessage("")
     setViewState("options")
     try {
-      const options = await getRecipeOptionsFromChefClaude(Ingred)
+      const options = await getRecipeOptionsFromChefClaude(Ingred, mainIngredient)
       setRecipeOptions(options)
     } catch (err) {
       console.error("Error fetching recipe options:", err)
@@ -168,6 +219,7 @@ export default function Home() {
 
   // Fetch Full Recipe for selected option
   async function handleSelectRecipeOption(option) {
+    window.scrollTo({ top: 0, behavior: 'instant' })
     setSelectedOption(option)
     setLoadingRecipe(true)
     setErrorMessage("")
@@ -184,16 +236,15 @@ export default function Home() {
     }
   }
 
-  function toggleSaveRecipe(option, e) {
+  async function toggleSaveRecipe(option, e) {
     if (e) e.stopPropagation()
     let updated = []
     if (savedRecipes.some(r => r.id === option.id)) {
-      updated = savedRecipes.filter(r => r.id !== option.id)
+      updated = await removeRecipeFromCloud(option.id);
     } else {
-      updated = [...savedRecipes, option]
+      updated = await saveRecipeToCloud(option);
     }
-    setSavedRecipes(updated)
-    localStorage.setItem('ingredia_saved', JSON.stringify(updated))
+    setSavedRecipes(updated);
   }
 
   function handleStartCooking() {
@@ -250,13 +301,13 @@ export default function Home() {
 
   function getDishImage(title) {
     const term = (title || "").toLowerCase()
-    if (term.includes("coffee") || term.includes("tea") || term.includes("chai")) return DishBeverage3D
-    if (term.includes("smoothie") || term.includes("shake")) return DishSmoothie3D
+    if (term.includes("coffee") || term.includes("tea") || term.includes("chai") || term.includes("beverage")) return DishBeverage3D
+    if (term.includes("smoothie") || term.includes("shake") || term.includes("juice") || term.includes("drink") || term.includes("banana")) return DishSmoothie3D
     if (term.includes("chicken") || term.includes("poultry") || term.includes("fry")) return DishChicken3D
-    if (term.includes("pasta") || term.includes("spaghetti")) return DishPasta3D
-    if (term.includes("salad")) return DishSalad3D
-    if (term.includes("curry") || term.includes("soup") || term.includes("masala") || term.includes("pulao")) return DishCurry3D
-    if (term.includes("pizza") || term.includes("bake")) return DishPizza3D
+    if (term.includes("pasta") || term.includes("spaghetti") || term.includes("noodle") || term.includes("macaroni")) return DishPasta3D
+    if (term.includes("salad") || term.includes("broccoli") || term.includes("veggie")) return DishSalad3D
+    if (term.includes("pizza") || term.includes("bake") || term.includes("sandwich") || term.includes("toast") || term.includes("bread") || term.includes("cheese")) return DishPizza3D
+    if (term.includes("curry") || term.includes("masala") || term.includes("gravy") || term.includes("soup") || term.includes("pulao") || term.includes("rice") || term.includes("paneer")) return DishCurry3D
     return DishVeggie3D
   }
 
@@ -266,6 +317,11 @@ export default function Home() {
 
   return (
     <main className="main-content">
+      <SEO 
+        title="Ingredia - Smart Kitchen AI Recipe Generator & Guided Cooking Companion" 
+        description="Turn your available pantry ingredients into delicious, restaurant-quality recipes instantly with Ingredia. Features step-by-step guided cooking and multi-language instructions."
+        canonical="https://ingredia.vercel.app/"
+      />
 
       {/* ERROR CARD COMPONENT */}
       {errorMessage && (
@@ -289,9 +345,6 @@ export default function Home() {
           
           {/* HERO HEADER */}
           <div className="hero-banner">
-            <div className="hero-badge-pill">
-              <Sparkles size={14} /> {t('hero.badge')}
-            </div>
             <h1 className="hero-headline">{t('hero.headline')}</h1>
             <p className="hero-subheadline">
               {t('hero.subheadline')}
@@ -309,7 +362,7 @@ export default function Home() {
                     setShowSuggestions(true)
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  placeholder={t('hero.searchPlaceholder')}
+                  placeholder="Search ingredients (e.g. Chicken, Tomato)..."
                   className="search-input-field"
                   aria-label="Search ingredients"
                 />
@@ -336,22 +389,9 @@ export default function Home() {
               )}
             </div>
 
-            {/* TRY EXAMPLES */}
-            <div className="try-prompts-row">
-              <span className="try-label">{t('hero.tryLabel')}</span>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Chicken, Rice, Tomato")}>
-                🍗 Chicken, Rice, Tomato
-              </button>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Milk, Coffee, Sugar")}>
-                ☕ Milk, Coffee, Sugar
-              </button>
-              <button className="try-pill-btn" onClick={() => handleTryExample("Pasta, Garlic, Olive oil")}>
-                🍝 Pasta, Garlic, Olive oil
-              </button>
-            </div>
           </div>
 
-          {/* CATEGORY BAR */}
+          {/* CATEGORY BAR (Placed right under search) */}
           <div className="categories-pill-bar">
             {categories.map((cat) => (
               <button
@@ -401,7 +441,7 @@ export default function Home() {
               <div className="card-top-header">
                 <div>
                   <h3 className="card-title-text">{t('readyIngredients')}</h3>
-                  <p className="card-subtitle-text">Ingredia will find matching recipes for your kitchen</p>
+                  <p className="card-subtitle-text">Tap an ingredient to set it as the Main Hero Ingredient (or leave unselected)</p>
                 </div>
                 
                 {/* HUGE STAT BADGE */}
@@ -413,20 +453,32 @@ export default function Home() {
 
               {/* Tag Chips */}
               <div className="chips-flex-wrap">
-                {Ingred.map((item, index) => (
-                  <div key={index} className="active-ingredient-chip">
-                    <Check size={14} strokeWidth={3} />
-                    <span>{item}</span>
-                    <button
-                      type="button"
-                      className="chip-close-btn"
-                      onClick={() => removeIngredient(index)}
-                      aria-label={`Remove ${item}`}
+                {Ingred.map((item, index) => {
+                  const isMain = mainIngredient === item
+                  return (
+                    <div 
+                      key={index} 
+                      className={`active-ingredient-chip ${isMain ? "main-hero-chip" : ""}`}
+                      onClick={() => toggleMainIngredient(item)}
+                      title={isMain ? "Main Hero Ingredient (Tap to unset)" : "Tap to set as Main Hero Ingredient"}
                     >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
+                      {isMain ? <Crown size={14} color="#F59E0B" /> : <Check size={14} strokeWidth={3} />}
+                      <span>{item}</span>
+                      {isMain && <span className="main-tag-pill">👑 Main</span>}
+                      <button
+                        type="button"
+                        className="chip-close-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeIngredient(index)
+                        }}
+                        aria-label={`Remove ${item}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* GENERATE BUTTON */}
@@ -436,7 +488,7 @@ export default function Home() {
                   className="btn-pulse-green"
                   onClick={handleFindRecipeOptions}
                 >
-                  <Sparkles size={20} /> {t('findOptions')}
+                  <ChefHat size={20} /> {t('findOptions')}
                 </button>
               </div>
             </div>
@@ -578,7 +630,7 @@ export default function Home() {
                     <h4>{t('ingredientsEnhance')}</h4>
                     <ul className="split-list">
                       {ingredientLists.aiAdded.map((item, i) => (
-                        <li key={i}>⭐ {item}</li>
+                        <li key={i}>✓ {item}</li>
                       ))}
                     </ul>
                   </div>
@@ -710,6 +762,30 @@ export default function Home() {
                 {t('cookAnother')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUTH GATE MODAL OVERLAY */}
+      {showAuthModal && (
+        <div className="modal-overlay-backdrop" onClick={() => setShowAuthModal(false)}>
+          <div className="modal-card-glass auth-modal-card" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-icon" onClick={() => setShowAuthModal(false)} aria-label="Close modal">
+              <X size={20} />
+            </button>
+            <div className="auth-modal-header text-center mb-4">
+              <h2 className="section-heading-large mb-1">🔐 Log In / Sign Up</h2>
+              <p className="section-subheading">
+                Please log in or create a free account to generate Chef AI recipes and save your cooking progress.
+              </p>
+            </div>
+            <AuthForm 
+              mode="login" 
+              onSuccess={() => {
+                setShowAuthModal(false);
+                handleFindRecipeOptions();
+              }} 
+            />
           </div>
         </div>
       )}

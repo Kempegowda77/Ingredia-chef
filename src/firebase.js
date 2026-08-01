@@ -5,9 +5,25 @@ import {
   signInWithPopup, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged 
 } from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyASoV1ww9FWaOJlBB6gJhdWI5CqedTPm8s",
@@ -21,17 +37,55 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Database Helper: Sync User Document in Firestore `users` collection
+export async function syncUserProfile(user) {
+  if (!user || !user.uid) return;
+  try {
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Chef User"),
+        photoURL: user.photoURL || null,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp()
+      });
+    } else {
+      await updateDoc(userRef, {
+        lastLoginAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    console.warn("Firestore syncUserProfile note:", err);
+  }
+}
 
 export { 
   app, 
   auth, 
+  db,
   googleProvider, 
   GoogleAuthProvider, 
   signInWithPopup, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp
 };
-

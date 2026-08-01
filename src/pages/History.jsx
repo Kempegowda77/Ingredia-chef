@@ -4,6 +4,12 @@ import { useTranslation } from "react-i18next"
 import { Search, History as HistoryIcon, Trash2, Sparkles, X, ChevronRight, AlertTriangle, MoreVertical, Calendar, Eye } from "lucide-react"
 
 import { safeGetLocalStorage } from "../security"
+import SEO from "../components/SEO"
+import {
+  loadHistoryFromCloud,
+  removeHistoryEntryFromCloud,
+  clearAllHistoryFromCloud
+} from "../utils/cloudSync"
 
 export default function History() {
   const { t } = useTranslation()
@@ -20,23 +26,25 @@ export default function History() {
     loadHistory()
   }, [])
 
-  function loadHistory() {
-    const history = safeGetLocalStorage('ingredia_history')
-    setHistoryList(history)
+  async function loadHistory() {
+    // Show local cache immediately, then fetch from cloud
+    const localData = JSON.parse(localStorage.getItem('ingredia_history') || '[]');
+    setHistoryList(localData);
+    const cloudData = await loadHistoryFromCloud();
+    setHistoryList(cloudData);
   }
 
-  function handleConfirmSingleDelete() {
+  async function handleConfirmSingleDelete() {
     if (!deleteTargetId) return
-    const updated = historyList.filter(item => item.id !== deleteTargetId)
+    const updated = await removeHistoryEntryFromCloud(deleteTargetId);
     setHistoryList(updated)
-    localStorage.setItem('ingredia_history', JSON.stringify(updated))
     if (activeRecipeView?.id === deleteTargetId) setActiveRecipeView(null)
     setDeleteTargetId(null)
   }
 
-  function handleConfirmClearAll() {
+  async function handleConfirmClearAll() {
     setHistoryList([])
-    localStorage.setItem('ingredia_history', JSON.stringify([]))
+    await clearAllHistoryFromCloud();
     setActiveRecipeView(null)
     setConfirmClearAll(false)
     setMenuOpen(false)
@@ -49,20 +57,18 @@ export default function History() {
 
   return (
     <main className="main-content">
+      <SEO 
+        title="Cooking History | Ingredia Kitchen"
+        description="View your past cooking history and revisit previously generated recipes in Ingredia."
+        canonical="https://ingredia.vercel.app/history"
+      />
       <div className="layout-single-column">
-        {/* COMPACT ELEGANT HEADER WITH THREE-DOT OVERFLOW */}
-        <div className="flex-header-row mb-6">
-          <div>
-            <h1 className="section-heading-large flex-heading">
-              {t('historyTitle')} <span className="badge-count">{historyList.length}</span>
-            </h1>
-            <p className="section-subheading">{t('historySub')}</p>
-          </div>
-
+        {/* COMPACT ELEGANT HEADER WITH THREE-DOT OVERFLOW MENU ON LEFT */}
+        <div className="flex-header-row-left mb-4">
           {historyList.length > 0 && (
             <div style={{ position: "relative" }}>
               <button 
-                className="user-profile-btn" 
+                className="icon-dots-btn" 
                 onClick={() => setMenuOpen(prev => !prev)}
                 aria-label="More Options"
                 title="More Options"
@@ -74,8 +80,8 @@ export default function History() {
                 <div 
                   className="autocomplete-dropdown" 
                   style={{ 
-                    right: 0, 
-                    left: "auto", 
+                    left: 0, 
+                    right: "auto", 
                     width: "180px", 
                     top: "110%", 
                     padding: "4px"
@@ -93,6 +99,13 @@ export default function History() {
               )}
             </div>
           )}
+
+          <div>
+            <h1 className="section-heading-large flex-heading">
+              {t('historyTitle')} <span className="badge-count">{historyList.length}</span>
+            </h1>
+            <p className="section-subheading">{t('historySub')}</p>
+          </div>
         </div>
 
         {/* FLOATING SEARCH BOX */}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "ingredia-cache-v2";
+const CACHE_NAME = "ingredia-cache-v3";
 const PRECACHE_ASSETS = [
   "/favicon.svg",
   "/manifest.json"
@@ -51,7 +51,7 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request) || caches.match("/"))
+        .catch(() => caches.match(request) || caches.match("/index.html"))
     );
     return;
   }
@@ -60,7 +60,10 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === "basic") {
+        const contentType = networkResponse.headers.get("content-type") || "";
+        const isHtmlResponse = contentType.includes("text/html");
+
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === "basic" && !isHtmlResponse) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
         }

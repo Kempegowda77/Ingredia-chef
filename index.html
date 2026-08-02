@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#0F9D58" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ingredia Kitchen" />
+    <meta name="application-name" content="Ingredia Kitchen" />
+    <meta name="author" content="Ingredia Smart Kitchen Team" />
+
+    <!-- SEO Primary Meta Tags -->
+    <title>Ingredia - Smart Kitchen AI Recipe Generator & Guided Cooking Companion</title>
+    <meta name="title" content="Ingredia - Smart Kitchen AI Recipe Generator & Guided Cooking Companion" />
+    <meta name="description" content="Turn your available pantry ingredients into delicious, restaurant-quality recipes instantly with Ingredia. Features step-by-step guided cooking, multi-language instructions, and smart pantry management." />
+    <meta name="keywords" content="recipe generator, AI chef, ingredient recipe finder, smart kitchen assistant, home cooking, step by step guided cooking, food recipes, pantry recipe app" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://ingredia.vercel.app/" />
+
+    <!-- Open Graph / Facebook / WhatsApp Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ingredia.vercel.app/" />
+    <meta property="og:site_name" content="Ingredia Kitchen" />
+    <meta property="og:title" content="Ingredia - Smart Kitchen AI Recipe Generator & Guided Cooking Companion" />
+    <meta property="og:description" content="Turn your available pantry ingredients into delicious, restaurant-quality recipes instantly with Ingredia." />
+    <meta property="og:image" content="https://ingredia.vercel.app/favicon.svg" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://ingredia.vercel.app/" />
+    <meta name="twitter:title" content="Ingredia - Smart Kitchen AI Recipe Generator & Guided Cooking Companion" />
+    <meta name="twitter:description" content="Turn your available pantry ingredients into delicious, restaurant-quality recipes instantly with Ingredia." />
+    <meta name="twitter:image" content="https://ingredia.vercel.app/favicon.svg" />
+
+    <!-- Web App Manifest & Fonts -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Schema.org JSON-LD Structured Data for Google Rich Results -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Ingredia Smart Kitchen",
+        "url": "https://ingredia.vercel.app/",
+        "description": "Smart AI-powered kitchen companion that transforms available pantry ingredients into curated recipes with guided step-by-step cooking instructions.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "All",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "Ingredia Team"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js")
+            .then(reg => console.log("Service Worker registered successfully:", reg))
+            .catch(err => console.error("Service Worker registration failed:", err));
+        });
+      }
+    </script>
+  </body>
+</html>

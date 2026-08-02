@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. User Profiles Collection (`users/{userId}`)
+    // Each user can read and write only their own profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 2. Saved Recipes Collection (`saved_recipes/{recipeId}`)
+    // Users can read, create, update, and delete their own saved recipes
+    match /saved_recipes/{recipeId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // 3. Cooking History Collection (`cooking_history/{historyId}`)
+    // Users can read, create, update, and delete their own cooking history
+    match /cooking_history/{historyId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
